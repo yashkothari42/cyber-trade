@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/cyber-trade/static/css/main.f855e6bc.css",
+    "main.js": "/cyber-trade/static/js/main.23da1333.js",
+    "static/js/453.b03e3c98.chunk.js": "/cyber-trade/static/js/453.b03e3c98.chunk.js",
+    "index.html": "/cyber-trade/index.html",
+    "main.f855e6bc.css.map": "/cyber-trade/static/css/main.f855e6bc.css.map",
+    "main.23da1333.js.map": "/cyber-trade/static/js/main.23da1333.js.map",
+    "453.b03e3c98.chunk.js.map": "/cyber-trade/static/js/453.b03e3c98.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.f855e6bc.css",
+    "static/js/main.23da1333.js"
+  ]
+}
