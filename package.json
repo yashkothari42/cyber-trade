@@ -1,6 +1,7 @@
 {
   "name": "website",
   "version": "0.1.0",
+  "homepage": "https://yashkothari42.github.io/cyber-trade",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.13.3",
