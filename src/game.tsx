@@ -4,37 +4,10 @@ import {
 } from 'recharts';
 import Button from '@mui/material/Button';
 import {
-    Card, CardContent, Typography, Grid, Box, Divider, Dialog, DialogTitle, DialogContent, DialogActions, ThemeProvider, createTheme, CssBaseline
+    Card, CardContent, Typography, Grid, Box, Divider, Dialog, DialogTitle, DialogContent, DialogActions, ThemeProvider, createTheme, CssBaseline,
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper
 } from '@mui/material';
-import Papa from 'papaparse';
-
-const news2 = `title,date,stock
-"Hearing Some Users Reporting Facebook's WhatsApp, Instagram Down",2020-04-01,FB
-P/E Ratio Insights for Facebook,2020-04-02,FB
-"Facebook shares are trading lower. Movement appears market related, as equities move lower for the session amid continued coronavirus-related volatility.",2020-04-03,FB
-"Barron's Picks And Pans: Post-Pandemic Ideas, Safe Dividends And More",2020-04-04,FB
-Shares of several semiconductor and large technology stocks are trading higher with the broader market on optimism that coronavirus cases in several US hotspots appear to be reaching their peak.,2020-04-06,FB
-"IVP, Sapphire Ventures Lead $100M Series E In CircleCI's Leading Software Solution",2020-04-07,FB
-P/E Ratio Insights for Facebook,2020-04-08,FB
-Why The Next Major Social Networks May Exist In Video Games,2020-04-09,FB
-"Barron's Picks And Pans: Berkshire Hathaway, Disney, SoftBank And More",2020-04-12,FB
-Facebook Option Traders Make $1M Bets On Multi-Year Rally,2020-04-13,FB
-'World Health Organization Launches Messenger Experience to Help Deliver Accurate Information on COVID-19' -From Facebook Messenger Newsroom Earlier Tues.,2020-04-14,FB
-"Amazon, Facebook Spokespeople Say Jeff Bezos, Mark Zuckerberg Joined White House Committee Call On Coronavirus Wed.",2020-04-15,FB
-"Big Stocks Moving After Hours As Market Cheers Gilead, 'Reopening' Updates",2020-04-16,FB
-"Gene Munster Dismisses Goldman's Apple Downgrade, Says Cupertino Has Long-Term Earnings Power",2020-04-17,FB
-"Bulls And Bears Of The Week: Caterpillar, Facebook, Microsoft And More",2020-04-19,FB
-"Credit Suisse Maintains Outperform on Facebook, Lowers Price Target to $234",2020-04-20,FB
-Afternoon Market Stats in 5 Minutes,2020-04-21,FB
-PreMarket Prep Stock Of The Day: Facebook,2020-04-22,FB
-"With NHL Season On Ice, League Launches Esports Challenge: 'Extremely Fun To Watch'",2020-04-23,FB
-"Forget Facebook, Snapchat, Twitter: TikTok Is The Breakout COVID-19 Social Media Platform",2020-04-24,FB
-Large Facebook Option Trader Betting On Earnings Sell-Off,2020-04-25,FB
-"Facebook To Release Q1 Earnings: Focus On Ad Revenue, User Data, Jio Investment",2020-04-27,FB
-Blue Chip Stocks Resisting COVID-19,2020-04-28,FB
-13 Stocks Moving In Wednesday's After-Hours Session,2020-04-29,FB
-7 Times Elon Musk Wasn't Afraid To Speak His Mind,2020-04-30,FB`;
-
+import Sentiment from 'sentiment';
 
 const news = `title,date,stock
 Facebook launches Messenger app for Windows and macOS,2020-04-01,FB
@@ -59,6 +32,7 @@ Facebook expands its Community Help feature in response to COVID-19,2020-04-27,F
 Facebook announces members of its new Oversight Board,2020-04-28,FB
 Facebook reports strong Q1 earnings despite COVID-19 impact,2020-04-29,FB
 Facebook warns of 'significant reduction' in sales growth as ad demand drops,2020-04-30,FB`;
+
 const stockPrices = `datetime,open,high,low,close,volume
 2020-04-01,161.62,164.15,158.03,159.6,14362302
 2020-04-02,159.1,161.35,155.92,158.2,15205788
@@ -80,9 +54,8 @@ const stockPrices = `datetime,open,high,low,close,volume
 2020-04-27,192.66,193.75,187.41,187.5,22244483
 2020-04-28,188.66,189.2,182.56,182.86,14824629
 2020-04-29,190.93,196.91,190.0,193.99,29579145
-2020-04-30,206.92,209.69,201.57,204.74,34762604
-`;
-// Simulated file reading function (replace with actual file reading in a real application)
+2020-04-30,206.92,209.69,201.57,204.74,34762604`;
+
 const readNewsFile = () => {
     return news.split('\n').slice(1).map(line => {
         const [title, date, stock] = line.split(',');
@@ -97,90 +70,27 @@ const readStockPriceFile = () => {
     });
 };
 
-const calculateMetrics = (priceHistory, initialBalance, finalBalance, holdings) => {
-    if (priceHistory.length < 2) {
-        return {
-            totalReturn: "N/A",
-            annualizedReturn: "N/A",
-            volatility: "N/A",
-            sharpeRatio: "N/A"
-        };
-    }
-
-    const startPrice = priceHistory[0].price;
-    const endPrice = priceHistory[priceHistory.length - 1].price;
-    const totalDays = priceHistory.length;
-
-    // Calculate returns
-    const totalValue = finalBalance + holdings * endPrice;
-    const totalReturn = (totalValue - initialBalance) / initialBalance;
-    const annualizedReturn = Math.pow(1 + totalReturn, 365 / totalDays) - 1;
-
-    // Calculate volatility (standard deviation of daily returns)
-    const dailyReturns = priceHistory.slice(1).map((day, index) =>
-        (day.price - priceHistory[index].price) / priceHistory[index].price
-    );
-    const avgReturn = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
-    const squaredDiffs = dailyReturns.map(r => Math.pow(r - avgReturn, 2));
-    const variance = squaredDiffs.reduce((a, b) => a + b, 0) / squaredDiffs.length;
-    const volatility = Math.sqrt(variance * 252); // Annualized volatility
-
-    // Calculate Sharpe Ratio (assuming risk-free rate of 2%)
-    const riskFreeRate = 0.02;
-    const sharpeRatio = volatility !== 0 ? (annualizedReturn - riskFreeRate) / volatility : 0;
-
-    return {
-        totalReturn: isFinite(totalReturn) ? (totalReturn * 100).toFixed(2) + '%' : "N/A",
-        annualizedReturn: isFinite(annualizedReturn) ? (annualizedReturn * 100).toFixed(2) + '%' : "N/A",
-        volatility: isFinite(volatility) ? (volatility * 100).toFixed(2) + '%' : "N/A",
-        sharpeRatio: isFinite(sharpeRatio) ? sharpeRatio.toFixed(2) : "N/A"
-    };
-};
-
-const InfoTooltip = ({ title, content, children }) => {
-    const [isOpen, setIsOpen] = useState(false);
-
-    return (
-        <span
-            onMouseEnter={() => setIsOpen(true)}
-            onMouseLeave={() => setIsOpen(false)}
-            style={{ position: 'relative', borderBottom: '1px dotted #000', cursor: 'help' }}
-        >
-            {children}
-            {isOpen && (
-                <Box sx={{
-                    position: 'absolute',
-                    bottom: '100%',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    color: 'white',
-                    padding: '5px 10px',
-                    borderRadius: '4px',
-                    zIndex: 1000,
-                    width: '200px'
-                }}>
-                    <Typography variant="subtitle2">{title}</Typography>
-                    <Typography variant="body2">{content}</Typography>
-                </Box>
-            )}
-        </span>
-    );
-};
-
 const formatCurrency = (value) => {
-    return `$${value.toFixed(2)}`;
+    if (value === undefined || value === null) {
+        return '$0.00';
+    }
+    return `$${Number(value).toFixed(2)}`;
 };
-
 
 const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 };
 
+const sentiment = new Sentiment();
 
+const analyzeSentiment = (text) => {
+    const result = sentiment.analyze(text);
+    if (result.score > 0) return 'Positive';
+    if (result.score < 0) return 'Negative';
+    return 'Neutral';
+};
 
-// Create a cyberpunk theme
 const cyberpunkTheme = createTheme({
     palette: {
         mode: 'dark',
@@ -243,24 +153,34 @@ const StockTradingGame = () => {
     const [gameOver, setGameOver] = useState(false);
     const [countdown, setCountdown] = useState(null);
     const [pnl, setPnl] = useState(0);
-    const [gameStarted, setGameStarted] = useState(false);
     const [isFinalCountdown, setIsFinalCountdown] = useState(false);
     const [stockData, setStockData] = useState([]);
     const [newsData, setNewsData] = useState([]);
     const [newsHistory, setNewsHistory] = useState([]);
     const [showOnboarding, setShowOnboarding] = useState(true);
     const [onboardingStep, setOnboardingStep] = useState(0);
-    const [showMetrics, setShowMetrics] = useState(false);
-    const [metrics, setMetrics] = useState({});
     const [latestNews, setLatestNews] = useState(null);
     const [highlightedNews, setHighlightedNews] = useState(null);
     const [chartData, setChartData] = useState([]);
+    const [gameReady, setGameReady] = useState(false);
+    const [newsWithSentiment, setNewsWithSentiment] = useState([]);
+    const [userTrades, setUserTrades] = useState([]);
+    const [showSummary, setShowSummary] = useState(false);
+    const [summaryData, setSummaryData] = useState([]);
+    const [finalStats, setFinalStats] = useState({});
 
     useEffect(() => {
         const loadedNewsData = readNewsFile();
         const loadedPriceData = readStockPriceFile();
         setNewsData(loadedNewsData);
         setStockData(loadedPriceData);
+
+        // Analyze sentiment for each news item
+        const newsWithSentimentData = loadedNewsData.map(news => ({
+            ...news,
+            sentiment: analyzeSentiment(news.title)
+        }));
+        setNewsWithSentiment(newsWithSentimentData);
 
         if (loadedPriceData.length > 0) {
             setCurrentDate(loadedPriceData[0].date);
@@ -273,24 +193,10 @@ const StockTradingGame = () => {
             }));
             setChartData(initialChartData);
         }
-
-        let startCountdown = 3;
-        const startTimer = setInterval(() => {
-            if (startCountdown > 0) {
-                setCountdown(startCountdown);
-                startCountdown--;
-            } else {
-                clearInterval(startTimer);
-                setCountdown(null);
-                setGameStarted(true);
-            }
-        }, 1000);
-
-        return () => clearInterval(startTimer);
     }, []);
 
     useEffect(() => {
-        if (gameStarted && !gameOver) {
+        if (gameReady && !gameOver) {
             const gameTimer = setInterval(() => {
                 setCurrentDate(prevDate => {
                     const currentIndex = stockData.findIndex(data => data.date === prevDate);
@@ -302,13 +208,11 @@ const StockTradingGame = () => {
                         return prevDate;
                     }
                 });
-            }, 3000);
+            }, 2000);
 
             return () => clearInterval(gameTimer);
         }
-    }, [gameStarted, gameOver, stockData]);
-
-
+    }, [gameReady, gameOver, stockData]);
 
     useEffect(() => {
         if (currentDate && stockData.length > 0) {
@@ -359,10 +263,6 @@ const StockTradingGame = () => {
                             setCountdown('Game Over!');
                             setGameOver(true);
                             setIsFinalCountdown(false);
-                            const finalMetrics = calculateMetrics(chartData.filter(data => data.price !== null), 1000, balance, holdings);
-                            setMetrics(finalMetrics);
-                            setShowMetrics(true);
-
                         }
                     }, 1000);
                 }
@@ -370,10 +270,46 @@ const StockTradingGame = () => {
         }
     }, [currentDate, holdings, balance, stockData, newsData]);
 
+    useEffect(() => {
+        if (gameOver) {
+            const summary = newsWithSentiment.map(news => {
+                const trade = userTrades.find(trade => trade.date === news.date);
+                return {
+                    date: news.date,
+                    article: news.title,
+                    sentiment: news.sentiment,
+                    action: trade ? trade.type : 'No Action'
+                };
+            });
+            setSummaryData(summary);
+
+            const initialValue = 1000; // Starting balance
+            const finalValue = balance + (holdings * (currentPrice || 0));
+            const totalReturn = ((finalValue - initialValue) / initialValue) * 100;
+            const totalTrades = userTrades.length;
+            const profitableTrades = userTrades.filter(trade =>
+                trade.type === 'Sell' && trade.price > trade.buyPrice
+            ).length;
+
+            setFinalStats({
+                pnl: finalValue - initialValue,
+                totalReturn: totalReturn,
+                totalTrades: totalTrades,
+                profitableTrades: profitableTrades,
+                winRate: totalTrades > 0 ? (profitableTrades / totalTrades) * 100 : 0,
+                finalBalance: balance,
+                finalHoldings: holdings,
+                finalStockPrice: currentPrice || 0
+            });
+
+            setShowSummary(true);
+        }
+    }, [gameOver, newsWithSentiment, userTrades, balance, holdings, currentPrice]);
     const handleBuy = () => {
         if (balance >= currentPrice && !gameOver) {
             setBalance(prevBalance => prevBalance - currentPrice);
             setHoldings(prevHoldings => prevHoldings + 1);
+            setUserTrades(prevTrades => [...prevTrades, { type: 'Buy', date: currentDate, price: currentPrice }]);
         }
     };
 
@@ -381,43 +317,46 @@ const StockTradingGame = () => {
         if (holdings > 0 && !gameOver) {
             setBalance(prevBalance => prevBalance + currentPrice);
             setHoldings(prevHoldings => prevHoldings - 1);
+            setUserTrades(prevTrades => [...prevTrades, { type: 'Sell', date: currentDate, price: currentPrice }]);
         }
     };
-    const onboardingSteps = [
-        {
-            title: "Welcome to the Stock Trading Game!",
-            content: "This game simulates trading a stock during April 2020. You'll see real historical data and news events."
-        },
-        {
-            title: "Your Portfolio",
-            content: "You start with $1000. Use this to buy stocks. Your goal is to maximize your profits by the end of the month."
-        },
-        {
-            title: "Buying and Selling",
-            content: "Use the 'Buy' button to purchase stocks at the current price, and 'Sell' to sell your holdings."
-        },
-        {
-            title: "News Feed",
-            content: "Pay attention to the news feed. Real events can impact stock prices!"
-        },
-        {
-            title: "Performance Chart",
-            content: "The chart shows the stock price and your profit/loss (PnL) over time."
-        }
-    ];
 
     const handleNextStep = () => {
         if (onboardingStep < onboardingSteps.length - 1) {
             setOnboardingStep(onboardingStep + 1);
         } else {
             setShowOnboarding(false);
+            setGameReady(true);
         }
     };
+
+    const onboardingSteps = [
+        {
+            title: "Welcome to Cyber Trade 2077!",
+            content: "This game simulates trading a stock during April 2020. You'll see real historical data and news events in a cyberpunk future setting."
+        },
+        {
+            title: "Your Digital Asset Portfolio",
+            content: "You start with $1000 in crypto-credits. Use this to buy DataChips (stocks). Your goal is to maximize your profits by the end of the month."
+        },
+        {
+            title: "Quantum Trading",
+            content: "Use the 'Acquire' button to purchase DataChips at the current price, and 'Liquidate' to sell your holdings."
+        },
+        {
+            title: "Neural Network Feed",
+            content: "Pay attention to the news feed. Real events can impact DataChip prices! Our AI analyzes the sentiment of each news item."
+        },
+        {
+            title: "Quantum Flux Analysis",
+            content: "The chart shows the DataChip price and your profit/loss (PnL) over time. Use this to inform your trading decisions."
+        }
+    ];
 
     return (
         <ThemeProvider theme={cyberpunkTheme}>
             <CssBaseline />
-            <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'background.default' }}>
+            <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'background.default', overflow: 'hidden' }}>
                 <Typography variant="h3" gutterBottom sx={{ textAlign: 'center', py: 2 }}>
                     Cyber Trade 2077
                 </Typography>
@@ -488,7 +427,7 @@ const StockTradingGame = () => {
                                             contentStyle={{ backgroundColor: '#1a1a1a', borderColor: '#00ffff' }}
                                         />
                                         <Legend />
-                                        <Line type="monotone" dataKey="price" stroke="#00ff00" name="Stock Price" dot={false} />
+                                        <Line type="monotone" dataKey="price" stroke="#00ff00" name="DataChip Price" dot={false} />
                                         <Line type="monotone" dataKey="pnl" stroke="#ff00ff" name="PnL" dot={false} />
                                     </LineChart>
                                 </ResponsiveContainer>
@@ -535,7 +474,7 @@ const StockTradingGame = () => {
                 </Box>
 
                 {/* Onboarding Dialog */}
-                <Dialog open={showOnboarding} onClose={() => setShowOnboarding(false)}>
+                <Dialog open={showOnboarding} onClose={() => { }}>
                     <DialogTitle sx={{ color: 'primary.main' }}>{onboardingSteps[onboardingStep].title}</DialogTitle>
                     <DialogContent>
                         <Typography>{onboardingSteps[onboardingStep].content}</Typography>
@@ -547,34 +486,55 @@ const StockTradingGame = () => {
                     </DialogActions>
                 </Dialog>
 
-                {/* Performance Metrics Dialog */}
-                <Dialog open={showMetrics} onClose={() => setShowMetrics(false)}>
-                    <DialogTitle sx={{ color: 'primary.main' }}>Simulation Performance</DialogTitle>
+                {/* End-Game Summary Dialog */}
+                <Dialog open={showSummary} onClose={() => setShowSummary(false)} maxWidth="lg" fullWidth>
+                    <DialogTitle sx={{ color: 'primary.main' }}>Simulation Summary</DialogTitle>
                     <DialogContent>
-                        <Typography variant="h6" gutterBottom>Advanced Metrics:</Typography>
-                        <Typography>
-                            <InfoTooltip title="Total Return" content="The overall profit or loss on your investment, expressed as a percentage of your initial investment.">
-                                Total Return: {metrics.totalReturn}
-                            </InfoTooltip>
-                        </Typography>
-                        <Typography>
-                            <InfoTooltip title="Annualized Return" content="Your return normalized to a one-year period, allowing comparison with other investments of different durations.">
-                                Annualized Return: {metrics.annualizedReturn}
-                            </InfoTooltip>
-                        </Typography>
-                        <Typography>
-                            <InfoTooltip title="Volatility" content="A measure of the price fluctuations of the stock. Higher volatility implies higher risk.">
-                                Volatility: {metrics.volatility}
-                            </InfoTooltip>
-                        </Typography>
-                        <Typography>
-                            <InfoTooltip title="Sharpe Ratio" content="A measure of risk-adjusted return. A higher Sharpe ratio indicates better return for the risk taken.">
-                                Sharpe Ratio: {metrics.sharpeRatio}
-                            </InfoTooltip>
-                        </Typography>
+                        <TableContainer component={Paper} sx={{ mb: 4, backgroundColor: 'background.paper' }}>
+                            <Table>
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell sx={{ color: 'primary.main' }}>Date</TableCell>
+                                        <TableCell sx={{ color: 'primary.main' }}>Article</TableCell>
+                                        <TableCell sx={{ color: 'primary.main' }}>Sentiment</TableCell>
+                                        <TableCell sx={{ color: 'primary.main' }}>Action</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {summaryData.map((row, index) => (
+                                        <TableRow key={index}>
+                                            <TableCell>{formatDate(row.date)}</TableCell>
+                                            <TableCell>{row.article}</TableCell>
+                                            <TableCell sx={{
+                                                color:
+                                                    row.sentiment === 'Positive' ? 'success.main' :
+                                                        row.sentiment === 'Negative' ? 'error.main' : 'text.secondary'
+                                            }}>
+                                                {row.sentiment}
+                                            </TableCell>
+                                            <TableCell>{row.action}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+
+                        <Typography variant="h6" gutterBottom sx={{ color: 'secondary.main' }}>Final Statistics:</Typography>
+                        <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                                <Typography>PnL: {formatCurrency(finalStats.pnl)}</Typography>
+                                <Typography>Total Return: {finalStats.totalReturn?.toFixed(2)}%</Typography>
+                                <Typography>Total Trades: {finalStats.totalTrades}</Typography>
+                            </Grid>
+                            <Grid item xs={6}>
+                                <Typography>Final Balance: {formatCurrency(finalStats.finalBalance)}</Typography>
+                                <Typography>Final Holdings: {finalStats.finalHoldings}</Typography>
+                                <Typography>Final DataChip Price: {formatCurrency(finalStats.finalStockPrice)}</Typography>
+                            </Grid>
+                        </Grid>
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={() => setShowMetrics(false)} color="primary">Close</Button>
+                        <Button onClick={() => setShowSummary(false)} color="primary">Close</Button>
                     </DialogActions>
                 </Dialog>
             </Box>
