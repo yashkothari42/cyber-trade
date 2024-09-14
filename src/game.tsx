@@ -208,7 +208,7 @@ const StockTradingGame = () => {
                         return prevDate;
                     }
                 });
-            }, 3000);
+            }, 2000);
 
             return () => clearInterval(gameTimer);
         }
@@ -241,7 +241,7 @@ const StockTradingGame = () => {
                 if (todayNews.length > 0) {
                     setLatestNews(todayNews[0]);
                     setHighlightedNews(todayNews[0].title);
-                    setTimeout(() => setHighlightedNews(null), 3000);
+                    setTimeout(() => setHighlightedNews(null), 2000);
                     setNewsHistory(prevHistory => {
                         const updatedHistory = [...todayNews, ...prevHistory];
                         const uniqueHistory = updatedHistory.filter((news, index, self) =>
